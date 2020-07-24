@@ -1,0 +1,54 @@
+import requests
+from bs4 import BeautifulSoup
+from urllib import request
+import re
+import pandas as pd
+
+## Constanct variables
+URL_PREFIX = "https://finance.naver.com/research/debenture_list.nhn?&page="
+PDF_FILE_SELECTOR = ".file a"
+
+DOWNLOAD_DIRECTORY = "nlp_project\\data\\"
+
+## custom util variables
+page_nums = range(1,2) # max = 126
+
+pdf_urls = []
+pdf_dates = []
+
+## main logic
+for n in page_nums:
+    url_with_pagenum = URL_PREFIX + str(n)
+
+    req = requests.get(url_with_pagenum)
+    html = req.text
+    soup = BeautifulSoup(html, 'html.parser')
+        
+    file_urls =  soup.select(PDF_FILE_SELECTOR)
+    tmp_file_dates =  soup.select(DATE_SELECTOR)
+   
+    for url in file_urls:
+       
+        if "href" in url.attrs:
+            pdf_urls.append(url["href"])
+            
+    for tfd_num in range(0,len(tmp_file_dates)): 
+        
+        if tfd_num%2==0:
+            #print(tfd_num,'은 짝수')
+            regex = re.compile(r'\d\d.\d\d.\d\d')
+            #print(tmp_file_dates[tfd_num:tfd_num+1])
+            match_obj = regex.search(str(tmp_file_dates[tfd_num:tfd_num+1]))
+            file_dates = match_obj.group()
+            #print(file_dates,'\n')
+
+            pdf_dates.append(file_dates)
+    
+savename_df = pd.DataFrame({'date':pdf_dates,'url':pdf_urls}) #채권 리포트 고유 넘버와 날짜 매칭 
+for sn_num in range(0,len(savename_df)):
+    file_name_tmp = savename_df['url'][sn_num]  
+    file_name = file_name_tmp[file_name_tmp.rfind("/")+1:len(file_name_tmp)]
+    file_date = savename_df['date'][sn_num][0:2]+savename_df['date'][sn_num][3:5]+savename_df['date'][sn_num][6:8]
+    savename = str(file_date + '_' + file_name)
+    print(savename)
+    request.urlretrieve(file_name_tmp,DOWNLOAD_DIRECTORY+savename)
